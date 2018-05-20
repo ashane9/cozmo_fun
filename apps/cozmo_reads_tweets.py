@@ -28,6 +28,7 @@ sys.path.append('../lib/')
 import twitter_helpers
 import user_twitter_keys as twitter_keys
 import re
+import datetime
 
 
 class CozmoReadsTweetsStreamListener(twitter_helpers.CozmoTweetStreamListener):
@@ -38,6 +39,12 @@ class CozmoReadsTweetsStreamListener(twitter_helpers.CozmoTweetStreamListener):
 
     def on_tweet_from_user(self, json_data, tweet_text, from_user, is_retweet):
         '''Called on every tweet that appears in the stream'''
+        user_me = self.twitter_api.me()
+        is_from_me = (from_user.get('id') == user_me.id)
+
+        if is_from_me and tweet_text.startswith("@"):
+            # ignore replies from this account
+            return
 
         user_name = from_user.get('screen_name')
         if is_retweet:
@@ -48,28 +55,44 @@ class CozmoReadsTweetsStreamListener(twitter_helpers.CozmoTweetStreamListener):
                 tweet_text = tweet_text[rt_loc+len(rt_prefix):]
             text_to_say = user_name + " retweeted " + tweet_text
         else:
-            text_to_say = user_name + " tweeted " + tweet_text
+            text_to_say = tweet_text
+            #text_to_say = user_name + " tweeted " + tweet_text
 
-        text_to_say = re.sub(r'@\w*\s', '',text_to_say).strip()
+        #tweet_back_text = text_to_say
+        #text_to_say = re.sub(r'@\w*\s', '',text_to_say).strip()
+        text_to_say = re.sub('@' + user_me.screen_name, '',text_to_say).strip()
 
         cozmo.logger.info('Cozmo says: "' + text_to_say + '"')
 
         self.cozmo.say_text(text_to_say).wait_for_completed()
+        
+        tweet_id = json_data.get('id_str')        
+
+        reply_prefix = "@" + user_name + " "                
+        
+        self.post_tweet(reply_prefix + text_to_say, tweet_id)
 
 
 def run(coz_conn):
     '''The run method runs once Cozmo is connected.'''
     coz = coz_conn.wait_for_robot()
-
-    twitter_api, twitter_auth = twitter_helpers.init_twitter(twitter_keys)
-    stream_listener = CozmoReadsTweetsStreamListener(coz, twitter_api)
-    twitter_stream = twitter_helpers.CozmoStream(twitter_auth, stream_listener)
-    twitter_stream.userstream()
+    
+    stream_listener = CozmoReadsTweetsStreamListener(coz, twitter_api)    
+    twitter_helpers.post_tweet(twitter_api, f"I am now active on twitter at {datetime.datetime.now()}")
+    
+    try:
+        twitter_stream = twitter_helpers.CozmoStream(twitter_auth, stream_listener)
+        twitter_stream.userstream()
+    except (coz_conn.ConnectionAborted, coz_conn.ConnectionError, coz_conn.ConnectionCheckFailed, coz_conn.CozmoSDKException) as e:    
+        twitter_helpers.post_tweet(twitter_api, f"I am now away from twitter at {datetime.datetime.now()}")
+        sys.exit("A connection error occurred: %s" % e)
 
 
 if __name__ == '__main__':
     cozmo.setup_basic_logging()
+    twitter_api, twitter_auth = twitter_helpers.init_twitter(twitter_keys)
     try:
         cozmo.connect(run)
-    except cozmo.ConnectionError as e:
+    except (cozmo.ConnectionAborted, cozmo.ConnectionError, cozmo.ConnectionCheckFailed, cozmo.CozmoSDKException) as e:    
+        twitter_helpers.post_tweet(twitter_api, f"I am now away from twitter at {datetime.datetime.now()}")
         sys.exit("A connection error occurred: %s" % e)

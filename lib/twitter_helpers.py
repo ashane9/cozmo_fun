@@ -192,8 +192,8 @@ def delete_all_tweets(twitter_api):
         except Exception as e:
             cozmo.logger.info("Exception '" + str(e) + "' trying to Delete Tweet " + str(status.id) + " = '" + status.text + "'")
 
-
+'''need to enter in console set HTTPS_PROXY=localhost:3128   '''
 def init_twitter(twitter_keys):
     auth = auth_twitter(twitter_keys)
-    twitter_api = tweepy.API(auth)
+    twitter_api = tweepy.API(auth, proxy='localhost:3128')
     return twitter_api, auth
