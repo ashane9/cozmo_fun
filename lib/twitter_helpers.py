@@ -153,18 +153,16 @@ class CozmoTweetStreamListener(tweepy.StreamListener):
         '''
 
         # parse data string into Json so we can inspect the contents
-        json_data = json.loads(raw_data.strip())
-
+        json_data = json.loads(raw_data)
         # is this a tweet?
-        #cozmo.logger.info(json_data)
         tweet_text = json_data.get('text')
-        extended = json_data.get('extended_tweet')
         
-        cozmo.logger.info(extended)
-        
+        if 'extended_tweet' in json_data:
+            tweet_text = json_data['extended_tweet']['full_text']
+            
+        #extended = json_data.get('extended_tweet').json()
         #full_text = extended.get('full_text')
         #cozmo.logger.info(full_text)
-        
         from_user = json_data.get('user')
         is_retweet = json_data.get('retweeted')
         is_tweet = (tweet_text is not None) and (from_user is not None) and (is_retweet is not None)
