@@ -26,7 +26,7 @@ import sys
 import cozmo
 sys.path.append('../lib/')
 import twitter_helpers
-import user_twitter_keys as twitter_keys
+import local_user_twitter_keys as twitter_keys
 import re
 import datetime
 
@@ -78,21 +78,21 @@ def run(coz_conn):
     coz = coz_conn.wait_for_robot()
     
     stream_listener = CozmoReadsTweetsStreamListener(coz, twitter_api)    
-    twitter_helpers.post_tweet(twitter_api, f"I am now active on twitter at {datetime.datetime.now()}")
+    text_to_tweet = "I am now active on twitter"
+    coz.say_text(text_to_tweet).wait_for_completed()
+    date_time = datetime.datetime.now().strftime("%m-%d-%Y %I:%M")
+    twitter_helpers.post_tweet(twitter_api, f"{text_to_tweet} at {date_time}")
     
-    try:
-        twitter_stream = twitter_helpers.CozmoStream(twitter_auth, stream_listener)
-        twitter_stream.userstream()
-    except (coz_conn.ConnectionAborted, coz_conn.ConnectionError, coz_conn.ConnectionCheckFailed, coz_conn.CozmoSDKException) as e:    
-        twitter_helpers.post_tweet(twitter_api, f"I am now away from twitter at {datetime.datetime.now()}")
-        sys.exit("A connection error occurred: %s" % e)
+    twitter_stream = twitter_helpers.CozmoStream(twitter_auth, stream_listener, coz, twitter_api)
+    twitter_stream.userstream()
 
 
 if __name__ == '__main__':
     cozmo.setup_basic_logging()
     twitter_api, twitter_auth = twitter_helpers.init_twitter(twitter_keys)
     try:
-        cozmo.connect(run)
+        cozmo.connect(run,twitter_helpers.CozmoConnection)
+        
     except (cozmo.ConnectionAborted, cozmo.ConnectionError, cozmo.ConnectionCheckFailed, cozmo.CozmoSDKException) as e:    
         twitter_helpers.post_tweet(twitter_api, f"I am now away from twitter at {datetime.datetime.now()}")
         sys.exit("A connection error occurred: %s" % e)

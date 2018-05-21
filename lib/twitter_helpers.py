@@ -21,6 +21,13 @@ from io import BytesIO
 import json
 import sys
 import cozmo
+from cozmo import event
+from cozmo import clad_protocol
+from cozmo import exceptions
+from cozmo import logger
+import datetime
+
+import local_user_twitter_keys as twitter_keys
 try:
     import tweepy
 except ImportError:
@@ -83,6 +90,17 @@ def post_tweet(twitter_api, tweet_text, reply_id=None, media_ids=None):
         cozmo.logger.error("post_tweet Error: " + str(e))
         return False
 
+# class CozmoConnection(event.Dispatcher, clad_protocol.CLADProtocol):
+class CozmoConnection(cozmo.conn.CozmoConnection):    
+    def connection_lost(self, exc):
+        #super().connection_lost(exc)
+        self._is_connected = False
+        if self._running:
+            twitter_api, twitter_auth = init_twitter(twitter_keys)
+            self.abort(exceptions.ConnectionAborted("Lost connection to the device hehe"))
+            logger.error("Lost connection to the device hehe: %s", exc)
+            date_time = datetime.datetime.now().strftime("%m-%d-%Y %I:%M")
+            post_tweet(twitter_api, f"I am now away from twitter at {date_time}")    
 
 class CozmoTweetStreamListener(tweepy.StreamListener):
     '''Cozmo wrapper around tweepy.StreamListener
@@ -138,7 +156,15 @@ class CozmoTweetStreamListener(tweepy.StreamListener):
         json_data = json.loads(raw_data.strip())
 
         # is this a tweet?
+        #cozmo.logger.info(json_data)
         tweet_text = json_data.get('text')
+        extended = json_data.get('extended_tweet')
+        
+        cozmo.logger.info(extended)
+        
+        #full_text = extended.get('full_text')
+        #cozmo.logger.info(full_text)
+        
         from_user = json_data.get('user')
         is_retweet = json_data.get('retweeted')
         is_tweet = (tweet_text is not None) and (from_user is not None) and (is_retweet is not None)
@@ -153,6 +179,11 @@ class CozmoStream(tweepy.Stream):
     '''Cozmo wrapper around tweepy.Stream
        Primarily just to avoid needing to import tweepy outside of this file
     '''
+    def __init__(self, auth, listener, coz, api, **options):    
+        super().__init__(auth=auth, listener=listener, options=options)
+        self.cozmo = coz
+        self.twitter_api = api
+    
 
     def async_userstream(self, stall_warnings=False, _with=None, replies=None,
                           track=None, locations=None, run_in_new_thread=True, encoding='utf8'):
@@ -165,8 +196,8 @@ class CozmoStream(tweepy.Stream):
         self.userstream(stall_warnings=stall_warnings, _with=_with, replies=replies,\
                         track=track, locations=locations, async=run_in_new_thread,\
                         encoding=encoding)
-
-
+        
+       
 def has_default_twitter_keys(twitter_keys):
     default_key = 'XXXXXXXXXX'
     return (twitter_keys.CONSUMER_KEY == default_key) and (twitter_keys.CONSUMER_SECRET == default_key) and \
@@ -195,5 +226,6 @@ def delete_all_tweets(twitter_api):
 '''need to enter in console set HTTPS_PROXY=localhost:3128   '''
 def init_twitter(twitter_keys):
     auth = auth_twitter(twitter_keys)
-    twitter_api = tweepy.API(auth, proxy='localhost:3128')
+    #twitter_api = tweepy.API(auth, proxy='localhost:3128')
+    twitter_api = tweepy.API(auth)
     return twitter_api, auth
