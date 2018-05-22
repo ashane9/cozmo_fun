@@ -90,7 +90,6 @@ def post_tweet(twitter_api, tweet_text, reply_id=None, media_ids=None):
         cozmo.logger.error("post_tweet Error: " + str(e))
         return False
 
-# class CozmoConnection(event.Dispatcher, clad_protocol.CLADProtocol):
 class CozmoConnection(cozmo.conn.CozmoConnection):    
     def connection_lost(self, exc):
         #super().connection_lost(exc)
@@ -159,10 +158,7 @@ class CozmoTweetStreamListener(tweepy.StreamListener):
         
         if 'extended_tweet' in json_data:
             tweet_text = json_data['extended_tweet']['full_text']
-            
-        #extended = json_data.get('extended_tweet').json()
-        #full_text = extended.get('full_text')
-        #cozmo.logger.info(full_text)
+
         from_user = json_data.get('user')
         is_retweet = json_data.get('retweeted')
         is_tweet = (tweet_text is not None) and (from_user is not None) and (is_retweet is not None)

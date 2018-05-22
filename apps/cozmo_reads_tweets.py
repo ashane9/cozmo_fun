@@ -79,7 +79,7 @@ def run(coz_conn):
     
     stream_listener = CozmoReadsTweetsStreamListener(coz, twitter_api)    
     text_to_tweet = "I am now active on twitter"
-    #coz.say_text(text_to_tweet).wait_for_completed()
+    coz.say_text(text_to_tweet).wait_for_completed()
     date_time = datetime.datetime.now().strftime("%m-%d-%Y %I:%M")
     twitter_helpers.post_tweet(twitter_api, f"{text_to_tweet} at {date_time}")
     
